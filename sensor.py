@@ -46,6 +46,27 @@ class BeckhoffADSSensor(BeckhoffADSEntity, SensorEntity):
         self._factor = config.get("factor", 1.0)
         self._offset = config.get("offset", 0.0)
         self._precision = config.get("precision", None)
+        self._range_options = config.get("range_scale", None)
+
+    def _apply_range_scaling(self, raw_value: Any) -> float:
+        """Apply range scaling algorithm to raw PLC value"""
+        if self._range_options is not None:
+            r = self._range_options
+            low_in = r.get("low_in")
+            high_in = r.get("high_in")
+            low_out = r.get("low_out")
+            high_out = r.get("high_out")
+            try:
+                ranged_value = ((float(raw_value)-low_in) * (high_out-low_out)) / (high_in-low_in) + low_out
+
+                return ranged_value
+            except(ValueError, TypeError, ZeroDivisionError):
+                _LOGGER.warning("Could not range value %s for %s", raw_value, self.entity_id)
+                return raw_value
+        else
+            return raw_value
+
+
 
     def _apply_scaling(self, raw_value: Any) -> float:
         """Apply scaling factor and offset to raw PLC value."""
@@ -88,7 +109,8 @@ class BeckhoffADSSensor(BeckhoffADSEntity, SensorEntity):
 
     def _process_notification_value(self, value: Any) -> None:
         """Process notification value with scaling."""
-        scaled_value = self._apply_scaling(value)
+        ranged_value = self._apply_range_scaling(value)
+        scaled_value = self._apply_scaling(ranged_value)
         self._attr_native_value = scaled_value
 
     async def async_update(self) -> None:
@@ -102,8 +124,10 @@ class BeckhoffADSSensor(BeckhoffADSEntity, SensorEntity):
             raw_value = await self._hub.async_read_value(
                 self._plc_address, self._get_plc_type()
             )
+            # Apply range scaling to the value
+            ranged_value = self._apply_range_scaling(raw_value)
             # Apply scaling to the raw value
-            scaled_value = self._apply_scaling(raw_value)
+            scaled_value = self._apply_scaling(ranged_value)
             self._attr_native_value = scaled_value
             self._attr_available = True
             

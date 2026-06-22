@@ -40,6 +40,14 @@ PLATFORMS: list[Platform] = [
     Platform.SWITCH,
 ]
 
+# YAML Schema for scaling filter
+SCALING_SCHEMA = vol.Schema({
+    vol.Required("low_in"): vol.Coerce(float),
+    vol.Required("high_in"): vol.Coerce(float),
+    vol.Required("low_out"): vol.Coerce(float),
+    vol.Required("high_out"): vol.Coerce(float),
+})
+
 # YAML Schema for entities
 ENTITY_SCHEMA = vol.Schema({
     vol.Required("name"): cv.string,
@@ -55,6 +63,7 @@ ENTITY_SCHEMA = vol.Schema({
     vol.Optional("factor", default=1.0): vol.Coerce(float),  # Scaling factor
     vol.Optional("offset", default=0.0): vol.Coerce(float),  # Offset
     vol.Optional("precision", default=None): vol.Any(None, vol.Coerce(int)),  # Decimal places
+    vol.Optional("range_scale"): SCALING_SCHEMA,
     # Number-specific options
     vol.Optional("min_value", default=0): vol.Coerce(float),  # Minimum value
     vol.Optional("max_value", default=100): vol.Coerce(float),  # Maximum value

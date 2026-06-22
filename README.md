@@ -119,6 +119,13 @@ beckhoff_ads:
 - `factor`: Scaling factor (default: 1.0)
 - `offset`: Offset value (default: 0.0)
 - `precision`: Decimal places (default: none)
+- `range_scale`: Range scaling silter (default: unused)
+  Takes place ahead of factor and offset scaling
+  - `low_in`: Low end of input range
+  - `high_in`: High end of input range
+  - `low_out`: Low end of output range
+  - `high_out`: High end of output range
+
 
 #### Number-Specific Options
 - `min_value`: Minimum value (default: 0)
