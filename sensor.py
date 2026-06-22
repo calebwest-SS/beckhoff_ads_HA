@@ -58,12 +58,13 @@ class BeckhoffADSSensor(BeckhoffADSEntity, SensorEntity):
             high_out = r.get("high_out")
             try:
                 ranged_value = ((float(raw_value)-low_in) * (high_out-low_out)) / (high_in-low_in) + low_out
+                ranged_value = max(low_out, min(ranged_value, high_out))
 
                 return ranged_value
             except(ValueError, TypeError, ZeroDivisionError):
                 _LOGGER.warning("Could not range value %s for %s", raw_value, self.entity_id)
                 return raw_value
-        else
+        else:
             return raw_value
 
 
