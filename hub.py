@@ -94,8 +94,12 @@ class BeckhoffADSHub:
 
     async def async_close(self) -> None:
         """Close the hub."""
-        if self._reconnect_task:
+        if self._reconnect_task and not self._reconnect_task.done():
             self._reconnect_task.cancel()
+            try:
+                await self._reconnect_task
+            except asyncio.CancelledError:
+                pass
         
         # Clean up notifications
         await self._async_cleanup_notifications()
