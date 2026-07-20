@@ -28,6 +28,8 @@ from .const import (
     RECONNECT_MAX_DELAY,
     YAML_CONFIG_FILE,
 )
+
+from .schema import CONFIG_SCHEMA
 from .hub import BeckhoffADSHub
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,42 +42,7 @@ PLATFORMS: list[Platform] = [
     Platform.SWITCH,
 ]
 
-# YAML Schema for scaling filter
-SCALING_SCHEMA = vol.Schema({
-    vol.Required("low_in"): vol.Coerce(float),
-    vol.Required("high_in"): vol.Coerce(float),
-    vol.Required("low_out"): vol.Coerce(float),
-    vol.Required("high_out"): vol.Coerce(float),
-})
 
-# YAML Schema for entities
-ENTITY_SCHEMA = vol.Schema({
-    vol.Required("name"): cv.string,
-    vol.Required("type"): vol.In(ENTITY_TYPES),
-    vol.Required("plc_address"): cv.string,
-    vol.Optional("unit_of_measurement"): cv.string,
-    vol.Optional("device_class"): cv.string,
-    vol.Optional("icon"): cv.string,
-    vol.Optional("options", default=[]): vol.All(cv.ensure_list, [cv.string]),
-    vol.Optional("scan_interval", default=5): cv.positive_int,
-    vol.Optional("use_notifications", default=True): cv.boolean,
-    vol.Optional("plc_type", default="REAL"): cv.string,  # For sensors/numbers
-    vol.Optional("factor", default=1.0): vol.Coerce(float),  # Scaling factor
-    vol.Optional("offset", default=0.0): vol.Coerce(float),  # Offset
-    vol.Optional("precision", default=None): vol.Any(None, vol.Coerce(int)),  # Decimal places
-    vol.Optional("range_scale"): SCALING_SCHEMA,
-    # Number-specific options
-    vol.Optional("min_value", default=0): vol.Coerce(float),  # Minimum value
-    vol.Optional("max_value", default=100): vol.Coerce(float),  # Maximum value
-    vol.Optional("step", default=1): vol.Coerce(float),  # Step size
-    vol.Optional("mode", default="slider"): vol.In(["slider", "box"]),  # UI mode
-})
-
-CONFIG_SCHEMA = vol.Schema({
-    DOMAIN: vol.Schema({
-        vol.Required(CONF_ENTITIES, default=[]): vol.All(cv.ensure_list, [ENTITY_SCHEMA])
-    })
-}, extra=vol.ALLOW_EXTRA)
 
 
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
@@ -104,8 +71,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     ams_net_id = entry.data[CONF_AMS_NET_ID]
     
     # Load YAML configuration
-    yaml_config = await _load_yaml_config(hass)
-    entities_config = yaml_config.get(CONF_ENTITIES, [])
+    #yaml_config = await _load_yaml_config(hass)
+    entities_config = entry.options.get(CONF_ENTITIES, [])
     
     # Create and setup hub
     hub = BeckhoffADSHub(hass, host, port, ams_net_id, entities_config)
@@ -120,9 +87,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     
     # Setup platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Reload entry when options change (user edits entities)
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     
     return True
 
+async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload when options are updated."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
